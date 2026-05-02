@@ -5,15 +5,15 @@
 (() => {
   'use strict';
 
-  // ---- Firebase Config (PLACEHOLDER — replace with your own) ----
+  // ---- Firebase Config ----
   const firebaseConfig = {
-    apiKey:            "YOUR_API_KEY",
-    authDomain:        "YOUR_PROJECT.firebaseapp.com",
-    databaseURL:       "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-    projectId:         "YOUR_PROJECT",
-    storageBucket:     "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "000000000000",
-    appId:             "1:000000000000:web:0000000000000000000000"
+    apiKey: "AIzaSyAZKZ3csVRjenMnFW9n4EqMHcSbRfQUEOk",
+    authDomain: "tanmayy-45c42.firebaseapp.com",
+    databaseURL: "https://tanmayy-45c42-default-rtdb.firebaseio.com",
+    projectId: "tanmayy-45c42",
+    storageBucket: "tanmayy-45c42.firebasestorage.app",
+    messagingSenderId: "975339988066",
+    appId: "1:975339988066:web:a3adf00dc6c4963b841d3b"
   };
 
   firebase.initializeApp(firebaseConfig);
