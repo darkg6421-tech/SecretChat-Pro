@@ -45,6 +45,7 @@
   // ---- State ----
   let currentUser   = '';
   let currentRoom   = '';
+  let myId          = 'u-' + Math.random().toString(36).substr(2, 9);
   let roomRef       = null;
   let messagesRef   = null;
   let presenceRef   = null;
@@ -150,15 +151,15 @@
       const data = snap.val() || {};
       const users = Object.keys(data);
 
-      if (users.length >= 2 && !users.includes(currentUser)) {
+      if (users.length >= 2 && !users.includes(myId)) {
         showToast('Room is full. Only 2 users allowed.', 'error');
         resetJoinBtn();
         return;
       }
 
-      // Register presence
-      const myPresenceRef = presenceRef.child(currentUser);
-      myPresenceRef.set(true);
+      // Register presence with Unique ID
+      const myPresenceRef = presenceRef.child(myId);
+      myPresenceRef.set({ name: currentUser, online: true });
       myPresenceRef.onDisconnect().remove();
 
       switchToChat();
@@ -167,7 +168,7 @@
       listenTyping();
     }).catch((err) => {
       console.error(err);
-      showToast('Failed to connect. Check Firebase config.', 'error');
+      showToast('Failed to connect. Check Firebase rules.', 'error');
       resetJoinBtn();
     });
   }
@@ -192,12 +193,12 @@
   function listenPresence() {
     const handler = presenceRef.on('value', (snap) => {
       const data = snap.val() || {};
-      const users = Object.keys(data);
-      const partner = users.find(u => u !== currentUser);
+      const userIds = Object.keys(data);
+      const partnerId = userIds.find(id => id !== myId);
 
-      if (partner) {
-        partnerName = partner;
-        setPartnerOnline(partner);
+      if (partnerId) {
+        partnerName = data[partnerId].name;
+        setPartnerOnline(partnerName);
         waitingOverlay.classList.add('hidden');
       } else {
         partnerName = '';
@@ -229,13 +230,6 @@
     partnerAvatarEl.hidden = true;
   }
 
-  function setPartnerOffline(name) {
-    const dot = partnerStatus.querySelector('.status-dot');
-    const text = partnerStatus.querySelector('.status-text');
-    dot.className = 'status-dot offline';
-    text.textContent = name ? `${name} went offline` : 'Partner disconnected';
-  }
-
   // ---- Messages ----
   function listenMessages() {
     lastSender = '';
@@ -251,7 +245,7 @@
   }
 
   function renderMessage(msg) {
-    const isSent = msg.sender === currentUser;
+    const isSent = msg.userId === myId;
     const dateStr = formatDate(msg.timestamp);
 
     // Date separator
@@ -274,8 +268,8 @@
       return;
     }
 
-    const consecutive = msg.sender === lastSender;
-    lastSender = msg.sender;
+    const consecutive = msg.userId === lastSender;
+    lastSender = msg.userId;
 
     const row = document.createElement('div');
     row.className = `message-row ${isSent ? 'sent' : 'received'}${consecutive ? ' consecutive' : ''}`;
@@ -303,6 +297,7 @@
     if (!text) return;
 
     const msg = {
+      userId: myId,
       sender: currentUser,
       text: text,
       timestamp: firebase.database.ServerValue.TIMESTAMP,
@@ -316,7 +311,7 @@
 
     // Clear typing indicator
     if (typingRef) {
-      typingRef.child(currentUser).remove();
+      typingRef.child(myId).remove();
     }
   }
 
@@ -331,17 +326,17 @@
 
   // ---- Typing Indicator ----
   function broadcastTyping() {
-    if (!typingRef || !currentUser) return;
+    if (!typingRef || !myId) return;
     const text = messageInput.value.trim();
 
     if (text) {
-      typingRef.child(currentUser).set(true);
+      typingRef.child(myId).set(true);
       clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => {
-        typingRef.child(currentUser).remove();
+        typingRef.child(myId).remove();
       }, 3000);
     } else {
-      typingRef.child(currentUser).remove();
+      typingRef.child(myId).remove();
       clearTimeout(typingTimeout);
     }
   }
@@ -349,7 +344,7 @@
   function listenTyping() {
     const handler = typingRef.on('value', (snap) => {
       const data = snap.val() || {};
-      const typingUsers = Object.keys(data).filter(u => u !== currentUser);
+      const typingUsers = Object.keys(data).filter(id => id !== myId);
 
       if (typingUsers.length > 0) {
         typingIndicator.hidden = false;
@@ -386,13 +381,13 @@
     unsubscribers = [];
 
     // Remove presence
-    if (presenceRef && currentUser) {
-      presenceRef.child(currentUser).remove();
+    if (presenceRef && myId) {
+      presenceRef.child(myId).remove();
     }
 
     // Remove typing
-    if (typingRef && currentUser) {
-      typingRef.child(currentUser).remove();
+    if (typingRef && myId) {
+      typingRef.child(myId).remove();
     }
 
     // Clear state
@@ -425,11 +420,11 @@
 
   // ---- Handle page unload ----
   window.addEventListener('beforeunload', () => {
-    if (presenceRef && currentUser) {
-      presenceRef.child(currentUser).remove();
+    if (presenceRef && myId) {
+      presenceRef.child(myId).remove();
     }
-    if (typingRef && currentUser) {
-      typingRef.child(currentUser).remove();
+    if (typingRef && myId) {
+      typingRef.child(myId).remove();
     }
   });
 
