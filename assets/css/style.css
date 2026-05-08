@@ -450,7 +450,7 @@ body {
 /* ---------- Waiting Overlay ---------- */
 .waiting-overlay {
   position: absolute;
-  inset: 0;
+  inset: 64px 0 80px 0; /* Adjusted to not cover header and input bar */
   z-index: 5;
   display: flex;
   align-items: center;
@@ -472,7 +472,7 @@ body {
 }
 
 .waiting-pulse {
-  position: relative; scale: 1;
+  position: relative;
   width: 80px; height: 80px;
   margin: 0 auto 24px;
   display: flex;
@@ -814,6 +814,7 @@ body {
   border-left: none;
   border-right: none;
   flex-shrink: 0;
+  z-index: 10; /* Ensure it's above overlay */
 }
 
 .input-bar {
@@ -927,7 +928,7 @@ body {
 .toast.info .toast-icon    { color: var(--primary-light); }
 
 @keyframes toastIn {
-  from { opacity: 0; transform: translateX(40px) scale(0.9); }
+  from { opacity: 0; transform: translateX(40px) scale(0.9); } 
   to   { opacity: 1; transform: translateX(0) scale(1); }
 }
 

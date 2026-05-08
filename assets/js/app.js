@@ -199,13 +199,14 @@
         partnerName = partner;
         setPartnerOnline(partner);
         waitingOverlay.classList.add('hidden');
-        messageInput.disabled = false;
-        sendBtn.disabled = !messageInput.value.trim();
       } else {
         partnerName = '';
         setPartnerWaiting();
         waitingOverlay.classList.remove('hidden');
       }
+      // Always enable input in chat screen
+      messageInput.disabled = false;
+      sendBtn.disabled = !messageInput.value.trim();
     });
     unsubscribers.push(() => presenceRef.off('value', handler));
   }
