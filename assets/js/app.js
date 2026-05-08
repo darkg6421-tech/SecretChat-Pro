@@ -114,6 +114,17 @@
     }, 3500);
   }
 
+  // ---- Connection Status Monitoring ----
+  const connectedRef = db.ref('.info/connected');
+  connectedRef.on('value', (snap) => {
+    if (snap.val() === true) {
+      showToast('Connected to Firebase', 'success');
+    } else {
+      // Only show error if we've already joined a room
+      if (currentRoom) showToast('Searching for server...', 'info');
+    }
+  });
+
   // ---- Auto-resize textarea ----
   messageInput.addEventListener('input', () => {
     messageInput.style.height = 'auto';
@@ -152,7 +163,7 @@
       const users = Object.keys(data);
 
       if (users.length >= 2 && !users.includes(myId)) {
-        showToast('Room is full. Only 2 users allowed.', 'error');
+        showToast('Room is full (2 max)', 'error');
         resetJoinBtn();
         return;
       }
@@ -168,7 +179,7 @@
       listenTyping();
     }).catch((err) => {
       console.error(err);
-      showToast('Failed to connect. Check Firebase rules.', 'error');
+      showToast('Firebase Error: ' + err.message, 'error');
       resetJoinBtn();
     });
   }
@@ -197,7 +208,7 @@
       const partnerId = userIds.find(id => id !== myId);
 
       if (partnerId) {
-        partnerName = data[partnerId].name;
+        partnerName = data[partnerId].name || 'Partner';
         setPartnerOnline(partnerName);
         waitingOverlay.classList.add('hidden');
       } else {
@@ -205,7 +216,7 @@
         setPartnerWaiting();
         waitingOverlay.classList.remove('hidden');
       }
-      // Always enable input in chat screen
+      // ALWAYS ENABLE INPUT REGARDLESS OF PARTNER STATUS
       messageInput.disabled = false;
       sendBtn.disabled = !messageInput.value.trim();
     });
@@ -234,6 +245,7 @@
   function listenMessages() {
     lastSender = '';
     lastDateStr = '';
+    messagesList.innerHTML = ''; // Clear for fresh start
 
     const handler = messagesRef.on('child_added', (snap) => {
       const msg = snap.val();
@@ -361,7 +373,6 @@
     navigator.clipboard.writeText(currentRoom).then(() => {
       showToast('Room code copied!', 'success');
     }).catch(() => {
-      // Fallback
       const ta = document.createElement('textarea');
       ta.value = currentRoom;
       document.body.appendChild(ta);
@@ -376,21 +387,17 @@
   leaveBtn.addEventListener('click', leaveRoom);
 
   function leaveRoom() {
-    // Cleanup Firebase listeners
     unsubscribers.forEach(fn => fn());
     unsubscribers = [];
 
-    // Remove presence
     if (presenceRef && myId) {
       presenceRef.child(myId).remove();
     }
 
-    // Remove typing
     if (typingRef && myId) {
       typingRef.child(myId).remove();
     }
 
-    // Clear state
     currentUser = '';
     currentRoom = '';
     partnerName = '';
@@ -401,7 +408,6 @@
     presenceRef = null;
     typingRef = null;
 
-    // Clear UI
     messagesList.innerHTML = '';
     messageInput.value = '';
     messageInput.style.height = 'auto';
@@ -409,16 +415,12 @@
     sendBtn.disabled = true;
     waitingOverlay.classList.remove('hidden');
     partnerAvatarEl.hidden = true;
-
-    // Reset join form
     resetJoinBtn();
 
-    // Switch screens
     chatScreen.classList.remove('active');
     joinScreen.classList.add('active');
   }
 
-  // ---- Handle page unload ----
   window.addEventListener('beforeunload', () => {
     if (presenceRef && myId) {
       presenceRef.child(myId).remove();
