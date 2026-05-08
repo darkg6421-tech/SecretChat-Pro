@@ -16,6 +16,12 @@
     appId: "1:975339988066:web:a3adf00dc6c4963b841d3b"
   };
 
+  // Global error handler
+  window.onerror = function(msg, url, line) {
+    showToast("JS Error: " + msg, "error");
+    return false;
+  };
+
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
@@ -111,7 +117,7 @@
     setTimeout(() => {
       toast.classList.add('removing');
       toast.addEventListener('animationend', () => toast.remove());
-    }, 3500);
+    }, 4500);
   }
 
   // ---- Connection Status Monitoring ----
@@ -120,8 +126,7 @@
     if (snap.val() === true) {
       showToast('Connected to Firebase', 'success');
     } else {
-      // Only show error if we've already joined a room
-      if (currentRoom) showToast('Searching for server...', 'info');
+      if (currentRoom) showToast('Searching for Firebase server...', 'info');
     }
   });
 
@@ -163,14 +168,16 @@
       const users = Object.keys(data);
 
       if (users.length >= 2 && !users.includes(myId)) {
-        showToast('Room is full (2 max)', 'error');
+        showToast('Room is full (2 max allowed)', 'error');
         resetJoinBtn();
         return;
       }
 
       // Register presence with Unique ID
       const myPresenceRef = presenceRef.child(myId);
-      myPresenceRef.set({ name: currentUser, online: true });
+      myPresenceRef.set({ name: currentUser, online: true }).catch(err => {
+        showToast("Rules Error: Permission Denied", "error");
+      });
       myPresenceRef.onDisconnect().remove();
 
       switchToChat();
@@ -179,7 +186,7 @@
       listenTyping();
     }).catch((err) => {
       console.error(err);
-      showToast('Firebase Error: ' + err.message, 'error');
+      showToast('Firebase Connection Error: ' + err.message, 'error');
       resetJoinBtn();
     });
   }
@@ -219,9 +226,18 @@
       // ALWAYS ENABLE INPUT REGARDLESS OF PARTNER STATUS
       messageInput.disabled = false;
       sendBtn.disabled = !messageInput.value.trim();
+    }, (err) => {
+       showToast("Sync Error: Permission Denied", "error");
     });
     unsubscribers.push(() => presenceRef.off('value', handler));
   }
+
+  // Manual Bypass for waiting screen
+  const bypassBtn = document.createElement('button');
+  bypassBtn.innerText = "Skip ✕";
+  bypassBtn.style = "margin-top: 15px; background: rgba(255,255,255,0.1); border: none; color: white; padding: 5px 12px; border-radius: 12px; cursor: pointer; font-size: 0.75rem;";
+  bypassBtn.onclick = () => waitingOverlay.classList.add('hidden');
+  waitingOverlay.querySelector('.waiting-content').appendChild(bypassBtn);
 
   function setPartnerOnline(name) {
     const dot = partnerStatus.querySelector('.status-dot');
@@ -245,13 +261,15 @@
   function listenMessages() {
     lastSender = '';
     lastDateStr = '';
-    messagesList.innerHTML = ''; // Clear for fresh start
+    messagesList.innerHTML = ''; 
 
     const handler = messagesRef.on('child_added', (snap) => {
       const msg = snap.val();
       if (!msg) return;
       renderMessage(msg);
       scrollToBottom();
+    }, (err) => {
+       showToast("Message Error: Permission Denied", "error");
     });
     unsubscribers.push(() => messagesRef.off('child_added', handler));
   }
@@ -260,7 +278,6 @@
     const isSent = msg.userId === myId;
     const dateStr = formatDate(msg.timestamp);
 
-    // Date separator
     if (dateStr !== lastDateStr) {
       lastDateStr = dateStr;
       const sep = document.createElement('div');
@@ -270,7 +287,6 @@
       lastSender = '';
     }
 
-    // System messages
     if (msg.type === 'system') {
       const sys = document.createElement('div');
       sys.className = 'system-message';
@@ -316,12 +332,13 @@
       type: 'text'
     };
 
-    messagesRef.push(msg);
+    messagesRef.push(msg).catch(err => {
+       showToast("Send Error: Permission Denied", "error");
+    });
     messageInput.value = '';
     messageInput.style.height = 'auto';
     sendBtn.disabled = true;
 
-    // Clear typing indicator
     if (typingRef) {
       typingRef.child(myId).remove();
     }
@@ -342,7 +359,7 @@
     const text = messageInput.value.trim();
 
     if (text) {
-      typingRef.child(myId).set(true);
+      typingRef.child(myId).set(true).catch(()=>{});
       clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => {
         typingRef.child(myId).remove();
